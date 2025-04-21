@@ -9,53 +9,49 @@ app.use(cors());
 app.use(express.json());
 
 const { MongoClient, ServerApiVersion } = require('mongodb');
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.19ooaii.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-    serverApi: {
-        version: ServerApiVersion.v1,
-        strict: true,
-        deprecationErrors: true,
+
+
+let client;
+let imageCollections;
+
+// Ensure a single MongoDB client instance
+async function connectToDatabase() {
+    if (!client) {
+        client = new MongoClient(uri, {
+            serverApi: {
+                version: ServerApiVersion.v1,
+                strict: true,
+                deprecationErrors: true,
+            },
+        });
+        await client.connect();
+        console.log("Connected to MongoDB");
+
+        imageCollections = client.db("photoshub").collection("images");
+    }
+}
+
+connectToDatabase().catch(console.dir);
+
+// Routes
+app.get('/images', async (req, res) => {
+    try {
+        await connectToDatabase();
+        const result = await imageCollections.find().toArray();
+        res.send(result);
+    } catch (error) {
+        console.error("Error fetching images:", error);
+        res.status(500).send({ message: "Internal Server Error" });
     }
 });
 
-async function run() {
-    try {
-        // Connect the client to the server	(optional starting in v4.7)
-        await client.connect();
-
-        // Get imagesCollection from database
-        const imagesCollection = client.db("photoshub").collection("images");
-
-        app.get('/images', async (req, res) => {
-            try {
-                const result = await imagesCollection.find().toArray();
-                res.send(result); // ✅ Send the result
-            } catch (err) {
-                console.error("Error fetching images:", err);
-                res.status(500).send("Failed to load images");
-            }
-        });
-
-
-        // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
-        console.log("Pinged your deployment. You successfully connected to MongoDB!");
-    } finally {
-        // Ensures that the client will close when you finish/error
-        // await client.close();
-    }
-}
-run().catch(console.dir);
-
-
-
-
 app.get('/', (req, res) => {
     res.send('Server is running');
-})
+});
 
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
-})
+});
