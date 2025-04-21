@@ -48,6 +48,40 @@ app.get('/images', async (req, res) => {
     }
 });
 
+// Add photo to server
+// Add photo to server
+app.post('/images', async (req, res) => {
+    try {
+        await connectToDatabase();
+        const { images, user } = req.body;
+
+        if (!images || !Array.isArray(images) || images.length === 0) {
+            return res.status(400).send({ message: "No images provided" });
+        }
+
+        const docs = images.map((imgUrl) => ({
+            imgUrl,
+            user: {
+                displayName: user?.displayName || null,
+                email: user?.email || null,
+                photoURL: user?.photoURL || null,
+            },
+            createdAt: new Date(),
+        }));
+
+        const result = await imageCollections.insertMany(docs);
+        res.status(201).send({
+            message: "Images uploaded successfully",
+            insertedCount: result.insertedCount,
+        });
+    } catch (error) {
+        console.error("Error uploading images:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+    }
+});
+
+
+
 app.get('/', (req, res) => {
     res.send('Server is running');
 });
