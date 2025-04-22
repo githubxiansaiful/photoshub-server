@@ -22,15 +22,19 @@ async function connectToDatabase() {
 
 export default async function handler(req, res) {
     try {
+        console.log("Received request:", req.method);
         await connectToDatabase();
+        console.log("Connected to MongoDB");
 
         if (req.method === 'GET') {
             const result = await imageCollections.find().toArray();
+            console.log("Fetched images:", result.length);
             return res.status(200).json(result);
         }
 
         if (req.method === 'POST') {
             const { images, user } = req.body;
+            console.log("POST body:", req.body);
 
             if (!images || !Array.isArray(images) || images.length === 0) {
                 return res.status(400).json({ message: "No images provided" });
@@ -58,7 +62,7 @@ export default async function handler(req, res) {
 
         return res.status(405).json({ message: "Method Not Allowed" });
     } catch (error) {
-        console.error("API error:", error);
+        console.error("API error:", error.message);
         return res.status(500).json({ message: "Internal Server Error" });
     }
 }
