@@ -11,6 +11,7 @@ const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster
 
 let client;
 let imageCollections;
+let stockPhotosHub;
 
 async function connectToDatabase() {
     if (!client) {
@@ -24,9 +25,10 @@ async function connectToDatabase() {
         await client.connect();
         console.log("Connected to MongoDB");
         imageCollections = client.db("photoshub").collection("images");
+        stockPhotosHub = client.db("photoshub").collection("stockphotoshub");
     }
 }
-
+// For Photoshub
 app.get('/images', async (req, res) => {
     try {
         await connectToDatabase();
@@ -38,6 +40,19 @@ app.get('/images', async (req, res) => {
     }
 });
 
+// For StockPhotosHub
+app.get('/stock-photos-hub', async (req, res) => {
+    try {
+        await connectToDatabase();
+        const result = await stockPhotosHub.find().toArray();
+        res.send(result);
+    } catch (error) {
+        console.error("Error fetching images:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+    }
+});
+
+// For PhotosHub
 app.post('/images', async (req, res) => {
     try {
         await connectToDatabase();
@@ -70,6 +85,42 @@ app.post('/images', async (req, res) => {
         res.status(500).send({ message: "Internal Server Error" });
     }
 });
+
+// For Stock Photos Hub
+app.post('/stock-photos-hub', async (req, res) => {
+    try {
+        await connectToDatabase();
+        const { images, user } = req.body;
+
+        if (!images || !Array.isArray(images) || images.length === 0) {
+            return res.status(400).send({ message: "No images provided" });
+        }
+
+        const docs = images.map((img) => ({
+            imgUrl: img.url,
+            title: img.title,
+            category: img.category,
+            tag: img.tag,
+            user: {
+                displayName: user?.displayName || null,
+                email: user?.email || null,
+                photoURL: user?.photoURL || null,
+            },
+            createdAt: new Date(),
+        }));
+
+        const result = await stockPhotosHub.insertMany(docs);
+        res.status(201).send({
+            message: "Images uploaded successfully",
+            insertedCount: result.insertedCount,
+        });
+    } catch (error) {
+        console.error("Error uploading images:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+    }
+});
+
+
 
 app.get('/', (req, res) => {
     res.send('Server is running');
